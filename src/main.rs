@@ -79,6 +79,7 @@ fn tokenize(mut file: File) -> Option<Vec<Op>> {
                     Op::push_custom(&mut ops, OpKind::JumpNotZero, id as u8);
                 } else {
                     eprintln!("ERROR: Unexpected ']' at index:{index}");
+                    return None;
                 }
             }
             _ => (),

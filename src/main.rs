@@ -2,7 +2,7 @@
 use std::{
     env::args,
     fs::File,
-    io::{Read, Write, stdin, stdout},
+    io::{Read, stdin},
     process::ExitCode,
 };
 
@@ -116,7 +116,6 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    let mut stdout = stdout().lock();
     let mut stck: [u8; 30_000] = [0; 30_000];
     let mut pntr: u16 = 0;
     let mut index: usize = 0;
@@ -134,11 +133,13 @@ fn main() -> ExitCode {
                 let _ = stdin().read_exact(&mut stck[pntr as usize..pntr as usize]);
             }
             OpKind::Output => {
-                let mut c = op.operand;
                 let ch = stck[pntr as usize];
-                while c > 0 {
-                    let _ = stdout.write(&[ch]);
-                    c -= 1;
+                // if ch < 32 && ch != 10 {
+                //     continue;
+                // }
+                for _ in 0..op.operand {
+                    // println!("{} : {}", ch, ch as char);
+                    print!("{}", ch as char);
                 }
             }
             OpKind::Right => {

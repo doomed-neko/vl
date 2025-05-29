@@ -2,7 +2,7 @@
 use std::{
     env::args,
     fs::File,
-    io::{Read, stdin},
+    io::{stdin, Read},
     process::ExitCode,
 };
 
@@ -11,7 +11,8 @@ enum OpKind {
     Plus,
     Minus,
     Input,
-    Output,
+    OutputAscii,
+    OutputNumber,
     Left,
     Right,
     JumpZero,
@@ -28,9 +29,9 @@ impl Op {
         Self { kind, operand }
     }
     fn push(ops: &mut Vec<Op>, kind: OpKind) {
-        Self::push_custom(ops, kind, 1);
+        Self::push_custom_op(ops, kind, 1);
     }
-    fn push_custom(ops: &mut Vec<Op>, kind: OpKind, operand: u8) {
+    fn push_custom_op(ops: &mut Vec<Op>, kind: OpKind, operand: u8) {
         if let Some(op) = ops.last_mut() {
             if op.kind == kind {
                 op.operand += 1;
@@ -57,10 +58,13 @@ fn tokenize(mut file: File) -> Option<Vec<Op>> {
                 Op::push(&mut ops, OpKind::Minus);
             }
             ',' => {
-                Op::push_custom(&mut ops, OpKind::Input, 1);
+                Op::push(&mut ops, OpKind::Input);
             }
             '.' => {
-                Op::push_custom(&mut ops, OpKind::Output, 1);
+                Op::push(&mut ops, OpKind::OutputAscii);
+            }
+            '*' => {
+                Op::push(&mut ops, OpKind::OutputNumber);
             }
             '<' => {
                 Op::push(&mut ops, OpKind::Left);
@@ -70,13 +74,13 @@ fn tokenize(mut file: File) -> Option<Vec<Op>> {
             }
             '[' => {
                 bracket_stack.push(ops.len());
-                Op::push_custom(&mut ops, OpKind::JumpZero, 0);
+                Op::push(&mut ops, OpKind::JumpZero);
             }
             ']' => {
                 let last_item = bracket_stack.pop();
                 if let Some(id) = last_item {
                     ops[id].operand = ops.len() as u8 - 1;
-                    Op::push_custom(&mut ops, OpKind::JumpNotZero, id as u8);
+                    Op::push_custom_op(&mut ops, OpKind::JumpNotZero, id as u8);
                 } else {
                     eprintln!("ERROR: Unexpected ']' at index:{index}");
                     return None;
@@ -96,7 +100,12 @@ fn tokenize(mut file: File) -> Option<Vec<Op>> {
 fn main() -> ExitCode {
     let mut args = args();
     let file_name: String;
-    if let Some(arg) = args.nth(1) {
+    let program = args.next().unwrap();
+    if let Some(arg) = args.next() {
+        if arg == "--help" {
+            println!("Usage:\n    {program} <filename>");
+            return ExitCode::FAILURE;
+        }
         file_name = arg;
     } else {
         eprintln!("ERROR: No file name provided\nUsage: vl <filename>");
@@ -132,14 +141,16 @@ fn main() -> ExitCode {
             OpKind::Input => {
                 let _ = stdin().read_exact(&mut stck[pntr as usize..pntr as usize]);
             }
-            OpKind::Output => {
+            OpKind::OutputAscii => {
                 let ch = stck[pntr as usize];
-                // if ch < 32 && ch != 10 {
-                //     continue;
-                // }
                 for _ in 0..op.operand {
-                    // println!("{} : {}", ch, ch as char);
                     print!("{}", ch as char);
+                }
+            }
+            OpKind::OutputNumber => {
+                let ch = stck[pntr as usize];
+                for _ in 0..op.operand {
+                    print!("{}", ch);
                 }
             }
             OpKind::Right => {
@@ -158,7 +169,7 @@ fn main() -> ExitCode {
             }
             OpKind::JumpZero if stck[pntr as usize] == 0 => index = op.operand as usize,
             OpKind::JumpNotZero if stck[pntr as usize] != 0 => index = op.operand as usize,
-            _ => (),
+            OpKind::JumpZero | OpKind::JumpNotZero => (),
         }
     }
 
